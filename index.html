@@ -7,13 +7,13 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        :root{--bg0:#0b0f1a;--bg1:#111827;--card:rgba(17,24,39,.72);--card2:rgba(23,33,54,.62);--stroke:rgba(100,116,160,.18);--text:#eaf0ff;--muted:rgba(165,180,210,.54);--shadow:0 2px 24px rgba(0,0,0,.38);--shadow2:0 1px 8px rgba(0,0,0,.22);--radius:16px;--radius2:10px;--focus:#3b82f6}
+        :root{--bg0:#0b0f1a;--bg1:#111827;--card:rgba(17,24,39,.72);--stroke:rgba(100,116,160,.18);--text:#eaf0ff;--muted:rgba(165,180,210,.54);--radius:16px;--radius2:10px}
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
         body{font-family:'Inter',sans-serif;background:var(--bg0);color:var(--text);min-height:100vh;background:radial-gradient(ellipse 120% 60% at 50% -10%,rgba(56,90,160,.22) 0%,transparent 60%),linear-gradient(175deg,var(--bg0) 0%,#10162a 100%)}
         header{position:sticky;top:0;z-index:100;backdrop-filter:blur(18px);background:rgba(11,15,26,.78);border-bottom:1px solid var(--stroke);padding:1.1rem;text-align:center}
         header h1{font-size:1.5rem;font-weight:800;color:#f0f4ff}
         .container{max-width:1400px;margin:0 auto;padding:1.5rem}
-        .filters{background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);padding:1rem;margin-bottom:1.5rem;display:grid;grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));gap:1rem}
+        .filters{background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);padding:1rem;margin-bottom:1.5rem;display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:1rem}
         .filters select, .filters input{background:var(--bg1);border:1px solid var(--stroke);color:var(--text);padding:.5rem;border-radius:var(--radius2);outline:none}
         .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:1rem;margin-bottom:1.5rem}
         .kpi-card{background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);padding:1.2rem;position:relative;overflow:hidden}
@@ -24,16 +24,16 @@
         .chart-box{background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);padding:1.2rem;height:350px}
         .data-table{background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);padding:1rem;overflow-x:auto}
         table{width:100%;border-collapse:collapse;font-size:.85rem}
-        th{text-align:left;color:var(--muted);padding:10px;border-bottom:1px solid var(--stroke)}
+        th{text-align:left;color:var(--muted);padding:10px;border-bottom:1px solid var(--stroke);text-transform:uppercase;font-size:0.7rem}
         td{padding:10px;border-bottom:1px solid rgba(255,255,255,0.05)}
         .text-right{text-align:right}
-        .badge{padding:3px 8px;border-radius:5px;font-size:0.7rem;font-weight:700}
+        .badge{padding:3px 8px;border-radius:5px;font-size:0.7rem;font-weight:700;background:rgba(255,255,255,0.1)}
     </style>
 </head>
 <body>
 
 <header>
-    <h1>GESAMED 2000 — Dashboard Realtime</h1>
+    <h1>GESAMED 2000 — Dashboard Inteligente</h1>
     <p id="status" style="font-size:0.8rem; color:var(--muted)">Sincronizando con Google Sheets...</p>
 </header>
 
@@ -48,9 +48,9 @@
 
     <div class="kpi-grid">
         <div class="kpi-card"><div class="kpi-label">Expedientes</div><div class="kpi-value" id="kExp">0</div></div>
-        <div class="kpi-card"><div class="kpi-label">Facturado</div><div class="kpi-value" id="kFact">0 €</div></div>
-        <div class="kpi-card"><div class="kpi-label">Cobrado</div><div class="kpi-value" id="kCob">0 €</div></div>
-        <div class="kpi-card"><div class="kpi-label">Pendiente</div><div class="kpi-value" id="kPend" style="color:#ef4444">0 €</div></div>
+        <div class="kpi-card"><div class="kpi-label">Total Facturado</div><div class="kpi-value" id="kFact">0 €</div></div>
+        <div class="kpi-card"><div class="kpi-label">Total Cobrado</div><div class="kpi-value" id="kCob">0 €</div></div>
+        <div class="kpi-card"><div class="kpi-label">Pendiente Cobro</div><div class="kpi-value" id="kPend" style="color:#ef4444">0 €</div></div>
     </div>
 
     <div class="charts-grid">
@@ -60,23 +60,31 @@
 
     <div class="data-table">
         <table>
-            <thead><tr><th>Expediente</th><th>Fecha</th><th>Aseguradora</th><th>Abogado</th><th class="text-right">Facturado</th><th class="text-right">Cobrado</th><th>Estado</th></tr></thead>
+            <thead>
+                <tr>
+                    <th>Nº Exp.</th>
+                    <th>Fecha</th>
+                    <th>Aseguradora</th>
+                    <th>Abogado</th>
+                    <th class="text-right">Facturado</th>
+                    <th class="text-right">Cobrado</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
             <tbody id="tBody"></tbody>
         </table>
     </div>
 </div>
 
 <script>
-// USAMOS LA URL DE EXPORTACIÓN CSV PARA QUE EL CÓDIGO LEA DATOS LIMPIOS
 const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRD4xAY-smgan-fPLVb11yhV4QsQiKuJ8bnVyUrnJuNXuw6Sis3THNWL5Jg26M6qZM03GzIkkJcwKYA/pub?gid=2126248190&single=true&output=csv';
 
 let rawData = [];
 let charts = {};
 
+// Procesa números en formato español (1.250,50)
 function parseNum(v) {
     if(!v) return 0;
-    // Si el Excel viene de España, el punto es de miles y la coma decimal.
-    // Quitamos los puntos y cambiamos la coma por punto para que JS lo entienda.
     let n = v.toString().replace(/\./g, '').replace(',', '.');
     return parseFloat(n) || 0;
 }
@@ -85,17 +93,36 @@ async function init() {
     try {
         const resp = await fetch(CSV_URL);
         const text = await resp.text();
-        const rows = text.split('\n').slice(1);
+        const lines = text.split('\n');
         
-        rawData = rows.map(r => {
-            const c = r.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(x => x.replace(/"/g, '').trim());
-            return {
-                exp: c[0], fecha: c[1], aseg: c[2], abog: c[3],
-                fact: parseNum(c[4]), cob: parseNum(c[6]), est: (c[7] || 'PTE').toUpperCase()
-            };
-        }).filter(x => x.exp);
+        // Detectar índices de columnas automáticamente por nombre
+        const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim().toUpperCase());
+        
+        const idx = {
+            exp: headers.findIndex(h => h.includes('EXPEDIENTE') || h.includes('Nº')),
+            fecha: headers.findIndex(h => h.includes('FECHA')),
+            aseg: headers.findIndex(h => h.includes('ASEGURADORA')),
+            abog: headers.findIndex(h => h.includes('ABOGADO')),
+            fact: headers.findIndex(h => h.includes('FACTURADO')),
+            cob: headers.findIndex(h => h.includes('COBRADO')),
+            est: headers.findIndex(h => h.includes('ESTADO'))
+        };
 
-        // Llenar filtros
+        rawData = lines.slice(1).map(line => {
+            const c = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(x => x.replace(/"/g, '').trim());
+            if(c.length < 5) return null;
+            return {
+                exp: c[idx.exp] || 'S/N',
+                fecha: c[idx.fecha] || '',
+                aseg: c[idx.aseg] || 'Sin Aseguradora',
+                abog: c[idx.abog] || 'Sin Abogado',
+                fact: parseNum(c[idx.fact]),
+                cob: parseNum(c[idx.cob]),
+                est: (c[idx.est] || 'PTE').toUpperCase()
+            };
+        }).filter(x => x !== null);
+
+        // Rellenar selectores dinámicamente
         const fill = (id, prop) => {
             const sel = document.getElementById(id);
             [...new Set(rawData.map(x => x[prop]))].sort().forEach(v => {
@@ -105,9 +132,10 @@ async function init() {
         fill('fAseg', 'aseg'); fill('fAbog', 'abog'); fill('fEst', 'est');
 
         render();
-        document.getElementById('status').innerText = 'Datos actualizados';
+        document.getElementById('status').innerText = 'Sincronización completa';
     } catch (e) {
-        document.getElementById('status').innerText = 'Error al cargar datos';
+        document.getElementById('status').innerText = 'Error en la coincidencia de columnas';
+        console.error(e);
     }
 }
 
@@ -115,26 +143,35 @@ function render() {
     const fA = document.getElementById('fAseg').value;
     const fB = document.getElementById('fAbog').value;
     const fE = document.getElementById('fEst').value;
+    const fD = document.getElementById('fDesde').value;
+    const fH = document.getElementById('fHasta').value;
 
     const filtered = rawData.filter(d => {
-        return (!fA || d.aseg === fA) && (!fB || d.abog === fB) && (!fE || d.est === fE);
+        const matchAseg = !fA || d.aseg === fA;
+        const matchAbog = !fB || d.abog === fB;
+        const matchEst = !fE || d.est === fE;
+        const matchDesde = !fD || d.fecha >= fD;
+        const matchHasta = !fH || d.fecha <= fH;
+        return matchAseg && matchAbog && matchEst && matchDesde && matchHasta;
     });
 
-    // KPIs
     const tFact = filtered.reduce((s, d) => s + d.fact, 0);
     const tCob = filtered.reduce((s, d) => s + d.cob, 0);
-    document.getElementById('kExp').innerText = filtered.length;
-    document.getElementById('kFact').innerText = tFact.toLocaleString('es-ES') + ' €';
-    document.getElementById('kCob').innerText = tCob.toLocaleString('es-ES') + ' €';
-    document.getElementById('kPend').innerText = (tFact - tCob).toLocaleString('es-ES') + ' €';
 
-    // Tabla
+    document.getElementById('kExp').innerText = filtered.length;
+    document.getElementById('kFact').innerText = tFact.toLocaleString('es-ES', {minimumFractionDigits:2}) + ' €';
+    document.getElementById('kCob').innerText = tCob.toLocaleString('es-ES', {minimumFractionDigits:2}) + ' €';
+    document.getElementById('kPend').innerText = (tFact - tCob).toLocaleString('es-ES', {minimumFractionDigits:2}) + ' €';
+
     document.getElementById('tBody').innerHTML = filtered.slice(0, 50).map(d => `
         <tr>
-            <td>${d.exp}</td><td>${d.fecha}</td><td>${d.aseg}</td><td>${d.abog}</td>
-            <td class="text-right">${d.fact.toLocaleString('es-ES')} €</td>
-            <td class="text-right">${d.cob.toLocaleString('es-ES')} €</td>
-            <td><span class="badge" style="background:rgba(255,255,255,0.1)">${d.est}</span></td>
+            <td><b>${d.exp}</b></td>
+            <td>${d.fecha}</td>
+            <td>${d.aseg}</td>
+            <td>${d.abog}</td>
+            <td class="text-right">${d.fact.toLocaleString('es-ES', {minimumFractionDigits:2})} €</td>
+            <td class="text-right">${d.cob.toLocaleString('es-ES', {minimumFractionDigits:2})} €</td>
+            <td><span class="badge">${d.est}</span></td>
         </tr>
     `).join('');
 
@@ -142,22 +179,36 @@ function render() {
 }
 
 function updateCharts(data) {
-    const ctxEst = document.getElementById('cEst').getContext('2d');
+    // Gráfico de Estados
     const estCount = data.reduce((a, c) => (a[c.est] = (a[c.est] || 0) + 1, a), {});
-
     if(charts.est) charts.est.destroy();
-    charts.est = new Chart(ctxEst, {
+    charts.est = new Chart(document.getElementById('cEst').getContext('2d'), {
         type: 'doughnut',
         data: {
             labels: Object.keys(estCount),
-            datasets: [{ data: Object.values(estCount), backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'] }]
+            datasets: [{ data: Object.values(estCount), backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#a855f7'] }]
         },
-        options: { maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#fff' } } } }
+        options: { maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#fff' } }, title: {display:true, text:'EXPEDIENTES POR ESTADO', color:'#fff'} } }
+    });
+
+    // Gráfico de Aseguradoras (Top 5)
+    const asegFact = data.reduce((a, c) => (a[c.aseg] = (a[c.aseg] || 0) + c.fact, a), {});
+    const sortedAseg = Object.entries(asegFact).sort((a,b) => b[1]-a[1]).slice(0, 5);
+    if(charts.aseg) charts.aseg.destroy();
+    charts.aseg = new Chart(document.getElementById('cAseg').getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: sortedAseg.map(x => x[0]),
+            datasets: [{ label: 'Facturado (€)', data: sortedAseg.map(x => x[1]), backgroundColor: '#3b82f6' }]
+        },
+        options: { maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display:false }, title: {display:true, text:'TOP 5 ASEGURADORAS', color:'#fff'} }, scales: { x: { ticks: {color:'#fff'} }, y: { ticks: {color:'#fff'} } } }
     });
 }
 
 document.querySelectorAll('select, input').forEach(el => el.onchange = render);
 init();
 </script>
+</body>
+</html>
 </body>
 </html>
