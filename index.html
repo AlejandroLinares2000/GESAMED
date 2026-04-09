@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GESAMED 2000 — Dashboard Financiero</title>
+    <title>GESAMED 2000 — Dashboard Oficial</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -21,30 +21,33 @@
         .kpi-label{font-size:.75rem;color:var(--muted);text-transform:uppercase;font-weight:700}
         .kpi-value{font-size:1.6rem;font-weight:800;margin-top:5px}
         .data-table{background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);padding:1rem;overflow-x:auto}
-        table{width:100%;border-collapse:collapse;font-size:.85rem}
-        th{text-align:left;color:var(--muted);padding:10px;border-bottom:1px solid var(--stroke);text-transform:uppercase;font-size:0.7rem}
+        table{width:100%;border-collapse:collapse;font-size:.78rem}
+        th{text-align:left;color:var(--muted);padding:10px;border-bottom:1px solid var(--stroke);text-transform:uppercase;font-size:0.65rem}
         td{padding:10px;border-bottom:1px solid rgba(255,255,255,0.05)}
         .text-right{text-align:right}
-        .badge{padding:3px 8px;border-radius:5px;font-size:0.65rem;font-weight:700;text-transform:uppercase}
-        /* Colores según tu especificación */
-        .est-cobrado{background:#22c55e; color:#fff} /* Verde */
-        .est-pendiente{background:#3b82f6; color:#fff} /* Azul */
-        .est-monitorio{background:#ef4444; color:#fff} /* Rojo */
-        .est-sin-respuesta{background:#f59e0b; color:#fff} /* Naranja */
-        .est-parcial{background:#ec4899; color:#fff} /* Rosa */
+        .badge{padding:4px 10px;border-radius:6px;font-size:0.65rem;font-weight:800;text-transform:uppercase;display:inline-block}
+        .est-cobrado{background:#22c55e; color:#fff} 
+        .est-parcial{background:#ec4899; color:#fff}
+        .est-sin-respuesta{background:#f59e0b; color:#fff}
+        .est-pendiente{background:#3b82f6; color:#fff}
     </style>
 </head>
 <body>
 
 <header>
-    <h1>GESAMED 2000 — Panel de Control</h1>
-    <p id="status" style="font-size:0.8rem; color:var(--muted)">Leyendo columnas B, E, K, A, D, H+I...</p>
+    <h1>GESAMED 2000 — Dashboard Operativo</h1>
+    <p id="status" style="font-size:0.8rem; color:var(--muted)">Procesando datos de Google Sheets...</p>
 </header>
 
 <div class="container">
     <div class="filters">
         <select id="fAseg"><option value="">Aseguradora (Todas)</option></select>
         <select id="fAbog"><option value="">Abogado (Todos)</option></select>
+        <select id="fEst"><option value="">Estado (Filtrar por cálculo)</option>
+            <option value="COBRADO">COBRADO</option>
+            <option value="PAGO PARCIAL">PAGO PARCIAL</option>
+            <option value="SIN RESPUESTA">SIN RESPUESTA</option>
+        </select>
         <input type="date" id="fDesde">
         <input type="date" id="fHasta">
     </div>
@@ -53,20 +56,20 @@
         <div class="kpi-card"><div class="kpi-label">Expedientes</div><div class="kpi-value" id="kExp">0</div></div>
         <div class="kpi-card"><div class="kpi-label">Total Facturado</div><div class="kpi-value" id="kFact">0 €</div></div>
         <div class="kpi-card"><div class="kpi-label">Total Cobrado</div><div class="kpi-value" id="kCob">0 €</div></div>
-        <div class="kpi-card"><div class="kpi-label">Pendiente</div><div class="kpi-value" id="kPend" style="color:#ef4444">0 €</div></div>
+        <div class="kpi-card"><div class="kpi-label">Pendiente Real</div><div class="kpi-value" id="kPend" style="color:#ef4444">0 €</div></div>
     </div>
 
     <div class="data-table">
         <table>
             <thead>
                 <tr>
-                    <th>Abogado (A)</th>
-                    <th>Nº Exp (B)</th>
-                    <th>Fecha (E)</th>
-                    <th>Aseguradora (K)</th>
+                    <th>Abogado</th>
+                    <th>Nº Exp</th>
+                    <th>Fecha</th>
+                    <th>Aseguradora</th>
                     <th class="text-right">Facturado (D)</th>
                     <th class="text-right">Cobrado (H+I)</th>
-                    <th>Estado</th>
+                    <th>Estado Calc.</th>
                 </tr>
             </thead>
             <tbody id="tBody"></tbody>
@@ -80,17 +83,17 @@ const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRD4xAY-smgan-f
 let rawData = [];
 
 function parseNum(v) {
-    if(!v || v.trim() === "") return 0;
-    let n = v.toString().replace(/\./g, '').replace(',', '.');
-    return parseFloat(n) || 0;
+    if(!v || v.trim() === "" || v === "-") return 0;
+    // Eliminar símbolos de moneda y espacios, corregir formato decimal español
+    let clean = v.toString().replace(/[€\s]/g, '').replace(/\./g, '').replace(',', '.');
+    let n = parseFloat(clean);
+    return isNaN(n) ? 0 : n;
 }
 
-// Lógica de estados basada en los importes (ya que el color no viaja en el CSV)
-function determinarEstado(fact, cob) {
-    if (cob <= 0) return { label: 'SIN RESPUESTA', class: 'est-sin-respuesta' };
-    if (cob >= fact) return { label: 'COBRADO', class: 'est-cobrado' };
+function calcularEstado(fact, cob) {
+    if (cob >= fact && fact > 0) return { label: 'COBRADO', class: 'est-cobrado' };
     if (cob > 0 && cob < fact) return { label: 'PAGO PARCIAL', class: 'est-parcial' };
-    return { label: 'PENDIENTE', class: 'est-pendiente' };
+    return { label: 'SIN RESPUESTA', class: 'est-sin-respuesta' };
 }
 
 async function init() {
@@ -103,59 +106,60 @@ async function init() {
             const c = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(x => x.replace(/"/g, '').trim());
             if(c.length < 11) return null;
 
-            const facturado = parseNum(c[3]); // Columna D (índice 3)
-            const cobrado = parseNum(c[7]) + parseNum(c[8]); // H(7) + I(8)
-            const estado = determinarEstado(facturado, cobrado);
+            const fact = parseNum(c[3]); // Col D
+            const cob = parseNum(c[7]) + parseNum(c[8]); // Col H + I
+            const est = calcularEstado(fact, cob);
 
             return {
-                abog: c[0] || 'S/A',      // Col A
+                abog: c[0] || 'N/D',      // Col A
                 exp: c[1] || 'S/N',       // Col B
                 fecha: c[4] || '',        // Col E
-                fact: facturado,          
-                cob: cobrado,
-                aseg: c[10] || 'S/A',     // Col K
-                estLabel: estado.label,
-                estClass: estado.class
+                aseg: c[10] || 'N/D',     // Col K
+                fact: fact,
+                cob: cob,
+                estLabel: est.label,
+                estClass: est.class
             };
-        }).filter(x => x !== null);
+        }).filter(x => x !== null && x.exp !== 'S/N');
 
         const fill = (id, prop) => {
             const sel = document.getElementById(id);
-            [...new Set(rawData.map(x => x[prop]))].sort().forEach(v => {
-                if(v) sel.add(new Option(v, v));
-            });
+            const vals = [...new Set(rawData.map(x => x[prop]))].filter(v => v && v !== 'N/D').sort();
+            vals.forEach(v => sel.add(new Option(v, v)));
         };
         fill('fAseg', 'aseg'); fill('fAbog', 'abog');
 
         render();
-        document.getElementById('status').innerText = 'Sincronizado correctamente';
+        document.getElementById('status').innerText = 'Sincronización OK';
     } catch (e) {
-        document.getElementById('status').innerText = 'Error de conexión';
+        document.getElementById('status').innerText = 'Error de datos';
     }
 }
 
 function render() {
     const fA = document.getElementById('fAseg').value;
     const fB = document.getElementById('fAbog').value;
+    const fE = document.getElementById('fEst').value;
     const fD = document.getElementById('fDesde').value;
     const fH = document.getElementById('fHasta').value;
 
     const filtered = rawData.filter(d => {
         return (!fA || d.aseg === fA) && 
                (!fB || d.abog === fB) && 
+               (!fE || d.estLabel === fE) &&
                (!fD || d.fecha >= fD) && 
                (!fH || d.fecha <= fH);
     });
 
-    const tFact = filtered.reduce((s, d) => s + d.fact, 0);
-    const tCob = filtered.reduce((s, d) => s + d.cob, 0);
+    const tF = filtered.reduce((s, d) => s + d.fact, 0);
+    const tC = filtered.reduce((s, d) => s + d.cob, 0);
 
     document.getElementById('kExp').innerText = filtered.length;
-    document.getElementById('kFact').innerText = tFact.toLocaleString('es-ES', {minimumFractionDigits:2}) + ' €';
-    document.getElementById('kCob').innerText = tCob.toLocaleString('es-ES', {minimumFractionDigits:2}) + ' €';
-    document.getElementById('kPend').innerText = (tFact - tCob).toLocaleString('es-ES', {minimumFractionDigits:2}) + ' €';
+    document.getElementById('kFact').innerText = tF.toLocaleString('es-ES', {minimumFractionDigits:2}) + ' €';
+    document.getElementById('kCob').innerText = tC.toLocaleString('es-ES', {minimumFractionDigits:2}) + ' €';
+    document.getElementById('kPend').innerText = (tF - tC).toLocaleString('es-ES', {minimumFractionDigits:2}) + ' €';
 
-    document.getElementById('tBody').innerHTML = filtered.slice(0, 100).map(d => `
+    document.getElementById('tBody').innerHTML = filtered.map(d => `
         <tr>
             <td>${d.abog}</td>
             <td><b>${d.exp}</b></td>
