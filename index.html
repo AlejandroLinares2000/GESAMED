@@ -43,12 +43,9 @@
         .estado-monitorio{background:rgba(249,115,22,.18);color:#fb923c}
         .estado-sin-respuesta{background:rgba(239,68,68,.18);color:#f87171}
         .estado-pte-pago{background:rgba(168,85,247,.18);color:#c084fc}
-        .pagination{display:flex;justify-content:center;align-items:center;gap:.8rem;margin-top:.8rem}
+        .pagination{display:flex;justify(content):center;align-items:center;gap:.8rem;margin-top:.8rem}
         .pagination button{background:var(--card2);border:1px solid var(--stroke);color:var(--text);padding:.4rem 1rem;border-radius:var(--radius2);cursor:pointer}
         .pagination button:disabled{opacity:.4}
-        @media(max-width:1200px){.kpi-card{grid-column:span 4}}
-        @media(max-width:900px){.kpi-card{grid-column:span 6}.chart-container{grid-column:span 12 !important}}
-        @media(max-width:680px){.kpi-card{grid-column:span 12}.filter-group{grid-template-columns:1fr}}
     </style>
 </head>
 <body>
@@ -56,7 +53,7 @@
 <header>
     <h1>GESAMED 2000 — Dashboard Financiero</h1>
     <div class="subtitle">Panel de Control de Expedientes</div>
-    <p id="statusMessage">Cargando datos desde la nube...</p>
+    <p id="statusMessage">Cargando datos...</p>
 </header>
 
 <div class="container">
@@ -72,7 +69,7 @@
     </div>
 
     <div class="kpi-grid">
-        <div class="kpi-card blue"><div class="kpi-label">Total Expedientes</div><div class="kpi-value" id="kpiExpedientes">0</div><div class="kpi-change" id="kpiExpChange">0% del total</div></div>
+        <div class="kpi-card blue"><div class="kpi-label">Total Expedientes</div><div class="kpi-value" id="kpiExpedientes">0</div><div class="kpi-change" id="kpiExpChange">0%</div></div>
         <div class="kpi-card green"><div class="kpi-label">Total Facturado</div><div class="kpi-value" id="kpiFacturado">0 €</div><div class="kpi-change" id="kpiFactChange"></div></div>
         <div class="kpi-card orange"><div class="kpi-label">Total Negociado</div><div class="kpi-value" id="kpiNegociado">0 €</div><div class="kpi-change" id="kpiNegChange"></div></div>
         <div class="kpi-card purple"><div class="kpi-label">Total Cobrado</div><div class="kpi-value" id="kpiCobrado">0 €</div><div class="kpi-change" id="kpiCobChange"></div></div>
@@ -117,48 +114,54 @@ let charts = {};
 async function loadData() {
     try {
         const res = await fetch(SHEET_URL);
-        if (!res.ok) throw new Error("Error de conexión");
         const text = await res.text();
         
-        const rows = text.trim().split('\n').map(row => {
+        // El separador en Google Sheets España suele ser el punto y coma (;)
+        // Limpiamos las filas y quitamos comillas
+        const rawRows = text.trim().split('\n');
+        const rows = rawRows.map(row => {
             const sep = row.includes(';') ? ';' : ',';
-            return row.split(new RegExp(`${sep}(?=(?:(?:[^"]*"){2})*[^"]*$)`))
-                      .map(cell => cell.replace(/"/g, '').trim());
+            return row.split(sep).map(cell => cell.replace(/"/g, '').trim());
         });
 
-        DATA = rows.slice(1).filter(r => r.length >= 7).map(r => ({
-            e: r[0],
-            f: r[1],
-            a: r[2],
-            b: r[3],
-            fa: parseNum(r[4]),
-            n: parseNum(r[5]),
-            c: parseNum(r[6]),
-            s: (r[7] || 'SIN RESPUESTA').toUpperCase()
-        }));
+        // Mapeo defensivo de columnas
+        DATA = rows.slice(1).filter(r => r.length >= 7).map(r => {
+            return {
+                e: r[0], // Expediente
+                f: r[1], // Fecha
+                a: r[2], // Aseguradora
+                b: r[3], // Abogado
+                fa: parseSpanishNumber(r[4]), // Facturado
+                n: parseSpanishNumber(r[5]),  // Negociado
+                c: parseSpanishNumber(r[6]),  // Cobrado
+                s: (r[7] || 'SIN RESPUESTA').toUpperCase()
+            };
+        });
 
-        if (DATA.length === 0) throw new Error("No hay datos válidos");
+        if (DATA.length === 0) throw new Error("No hay datos");
         initDashboard();
     } catch (e) {
-        document.getElementById('statusMessage').textContent = "⚠️ Error: Ejecuta el dashboard subiéndolo a GitHub Pages para evitar bloqueos del navegador.";
-        document.getElementById('statusMessage').style.color = "#fbbf24";
+        document.getElementById('statusMessage').textContent = "⚠️ Error leyendo datos. Verifica las columnas del Excel.";
     }
 }
 
-function parseNum(val) {
+// Función para procesar números tipo "1.250,50" o "1250.50"
+function parseSpanishNumber(val) {
     if (!val) return 0;
-    // Limpia puntos de miles y cambia coma por punto decimal
-    let n = val.replace(/\./g, '').replace(',', '.');
-    return parseFloat(n) || 0;
+    // Si hay puntos y comas, asumimos formato europeo: quitar puntos (miles) y cambiar coma por punto (decimal)
+    let clean = val.replace(/\./g, '').replace(',', '.');
+    let n = parseFloat(clean);
+    return isNaN(n) ? 0 : n;
 }
 
-const fmtEur = (n) => n.toLocaleString('es-ES', {minimumFractionDigits:2}) + ' €';
+const fmtEur = (n) => n.toLocaleString('es-ES', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
 const ESTADO_COLORS = {'PAGADO':'#22c55e','COBRADO':'#14b8a6','MONITORIO':'#f59e0b','SIN RESPUESTA':'#ef4444','PTE PAGO':'#a855f7'};
 
 function initDashboard() {
     const fill = (id, prop) => {
         const el = document.getElementById(id);
-        [...new Set(DATA.map(d => d[prop]))].sort().forEach(v => { if(v) el.add(new Option(v, v)); });
+        const vals = [...new Set(DATA.map(d => d[prop]))].filter(v => v).sort();
+        vals.forEach(v => el.add(new Option(v, v)));
     };
     fill('filterAseg', 'a');
     fill('filterAbog', 'b');
@@ -209,54 +212,61 @@ function updateUI() {
 
 function setupCharts() {
     const ctx = (id) => document.getElementById(id).getContext('2d');
-    const opt = { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#eaf0ff', font: { size: 10 } } } } };
+    const common = { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#eaf0ff', font: {size:10} } } } };
     
-    charts.estado = new Chart(ctx('chartEstado'), { type: 'doughnut', data: { labels: [], datasets: [{ data: [] }] }, options: opt });
-    charts.aseg = new Chart(ctx('chartAseg'), { type: 'bar', data: { labels: [], datasets: [{ label: 'Facturado', data: [], backgroundColor: '#3b82f6' }] }, options: { ...opt, indexAxis: 'y' } });
-    charts.mensual = new Chart(ctx('chartMensual'), { type: 'line', data: { labels: [], datasets: [{ label: 'Facturado', data: [], borderColor: '#3b82f6', fill: true }] }, options: opt });
-    charts.anual = new Chart(ctx('chartAnual'), { type: 'bar', data: { labels: [], datasets: [{ label: 'Facturado', data: [], backgroundColor: '#3b82f6' }, { label: 'Cobrado', data: [], backgroundColor: '#22c55e' }] }, options: opt });
-    charts.abog = new Chart(ctx('chartAbog'), { type: 'bar', data: { labels: [], datasets: [{ label: 'Expedientes', data: [], backgroundColor: '#a855f7' }] }, options: opt });
-    charts.estFact = new Chart(ctx('chartEstadoFact'), { type: 'bar', data: { labels: [], datasets: [{ data: [], label: 'Facturado' }] }, options: opt });
-    charts.comp = new Chart(ctx('chartComparativo'), { type: 'line', data: { labels: [], datasets: [{ label: 'Facturado', borderColor: '#3b82f6' }, { label: 'Negociado', borderColor: '#f59e0b' }, { label: 'Cobrado', borderColor: '#22c55e' }] }, options: opt });
+    charts.estado = new Chart(ctx('chartEstado'), { type: 'doughnut', data: { labels: [], datasets: [{ data: [] }] }, options: common });
+    charts.aseg = new Chart(ctx('chartAseg'), { type: 'bar', data: { labels: [], datasets: [{ label: 'Facturado', data: [], backgroundColor: '#3b82f6' }] }, options: { ...common, indexAxis: 'y' } });
+    charts.mensual = new Chart(ctx('chartMensual'), { type: 'line', data: { labels: [], datasets: [{ label: 'Facturado', data: [], borderColor: '#3b82f6', fill: true }] }, options: common });
+    charts.anual = new Chart(ctx('chartAnual'), { type: 'bar', data: { labels: [], datasets: [{ label: 'Facturado', backgroundColor:'#3b82f6' }, { label: 'Cobrado', backgroundColor:'#22c55e' }] }, options: common });
+    charts.abog = new Chart(ctx('chartAbog'), { type: 'bar', data: { labels: [], datasets: [{ label: 'Expedientes', data: [], backgroundColor: '#a855f7' }] }, options: common });
+    charts.estFact = new Chart(ctx('chartEstadoFact'), { type: 'bar', data: { labels: [], datasets: [{ data: [], label: 'Facturado' }] }, options: common });
+    charts.comp = new Chart(ctx('chartComparativo'), { type: 'line', data: { labels: [], datasets: [{ label: 'Facturado', borderColor: '#3b82f6' }, { label: 'Negociado', borderColor: '#f59e0b' }, { label: 'Cobrado', borderColor: '#22c55e' }] }, options: common });
 }
 
 function updateCharts() {
+    // Estado
     const ests = filteredData.reduce((a, c) => (a[c.s] = (a[c.s] || 0) + 1, a), {});
     charts.estado.data.labels = Object.keys(ests);
     charts.estado.data.datasets[0].data = Object.values(ests);
     charts.estado.data.datasets[0].backgroundColor = Object.keys(ests).map(k => ESTADO_COLORS[k] || '#6366f1');
     charts.estado.update();
 
+    // Aseguradoras Top 10
     const as = filteredData.reduce((a, c) => (a[c.a] = (a[c.a] || 0) + c.fa, a), {});
     const sortedAs = Object.entries(as).sort((a,b) => b[1]-a[1]).slice(0,10);
     charts.aseg.data.labels = sortedAs.map(e => e[0]);
     charts.aseg.data.datasets[0].data = sortedAs.map(e => e[1]);
     charts.aseg.update();
 
-    const ms = filteredData.reduce((a, c) => { if(c.f){ const m = c.f.substring(0,7); a[m] = (a[m]||0) + c.fa; } return a; }, {});
+    // Mensual
+    const ms = filteredData.reduce((a, c) => { if(c.f && c.f.includes('-')){ const m = c.f.substring(0,7); a[m] = (a[m]||0) + c.fa; } return a; }, {});
     const sortedMs = Object.keys(ms).sort();
     charts.mensual.data.labels = sortedMs;
     charts.mensual.data.datasets[0].data = sortedMs.map(m => ms[m]);
     charts.mensual.update();
-    
+
+    // Abogados
     const abs = filteredData.reduce((a, c) => (a[c.b] = (a[c.b] || 0) + 1, a), {});
-    charts.abog.data.labels = Object.keys(abs);
-    charts.abog.data.datasets[0].data = Object.values(abs);
+    const sortedAbs = Object.entries(abs).sort((a,b)=>b[1]-a[1]).slice(0,10);
+    charts.abog.data.labels = sortedAbs.map(e => e[0]);
+    charts.abog.data.datasets[0].data = sortedAbs.map(e => e[1]);
     charts.abog.update();
-
-    const efMap = filteredData.reduce((a, c) => (a[c.s] = (a[c.s] || 0) + c.fa, a), {});
-    charts.estFact.data.labels = Object.keys(efMap);
-    charts.estFact.data.datasets[0].data = Object.values(efMap);
-    charts.estFact.data.datasets[0].backgroundColor = Object.keys(efMap).map(k => ESTADO_COLORS[k] || '#6366f1');
-    charts.estFact.update();
-
+    
+    // Comparativo
     const cF = {}, cN = {}, cC = {};
-    filteredData.forEach(d => { if(d.f){ const m = d.f.substring(0,7); cF[m]=(cF[m]||0)+d.fa; cN[m]=(cN[m]||0)+d.n; cC[m]=(cC[m]||0)+d.c; } });
+    filteredData.forEach(d => { if(d.f && d.f.includes('-')){ const m = d.f.substring(0,7); cF[m]=(cF[m]||0)+d.fa; cN[m]=(cN[m]||0)+d.n; cC[m]=(cC[m]||0)+d.c; } });
     charts.comp.data.labels = sortedMs;
     charts.comp.data.datasets[0].data = sortedMs.map(m => cF[m] || 0);
     charts.comp.data.datasets[1].data = sortedMs.map(m => cN[m] || 0);
     charts.comp.data.datasets[2].data = sortedMs.map(m => cC[m] || 0);
     charts.comp.update();
+
+    // Facturado por Estado
+    const ef = filteredData.reduce((a, c) => (a[c.s] = (a[c.s] || 0) + c.fa, a), {});
+    charts.estFact.data.labels = Object.keys(ef);
+    charts.estFact.data.datasets[0].data = Object.values(ef);
+    charts.estFact.data.datasets[0].backgroundColor = Object.keys(ef).map(k => ESTADO_COLORS[k] || '#6366f1');
+    charts.estFact.update();
 }
 
 function updateTable() {
