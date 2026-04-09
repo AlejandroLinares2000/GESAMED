@@ -16,32 +16,35 @@
         .filters{background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);padding:1rem;margin-bottom:1.5rem;display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:1rem}
         .filters select, .filters input{background:var(--bg1);border:1px solid var(--stroke);color:var(--text);padding:.5rem;border-radius:var(--radius2);outline:none}
         .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:1rem;margin-bottom:1.5rem}
-        .kpi-card{background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);padding:1.2rem;position:relative;overflow:hidden}
+        .kpi-card{background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);padding:1.2rem;position:relative}
         .kpi-card::after{content:'';position:absolute;top:0;left:0;width:4px;height:100%;background:#3b82f6}
         .kpi-label{font-size:.75rem;color:var(--muted);text-transform:uppercase;font-weight:700}
         .kpi-value{font-size:1.6rem;font-weight:800;margin-top:5px}
-        .charts-grid{display:grid;grid-template-columns:repeat(auto-fit, minmax(400px, 1fr));gap:1.5rem;margin-bottom:1.5rem}
-        .chart-box{background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);padding:1.2rem;height:350px}
         .data-table{background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);padding:1rem;overflow-x:auto}
         table{width:100%;border-collapse:collapse;font-size:.85rem}
         th{text-align:left;color:var(--muted);padding:10px;border-bottom:1px solid var(--stroke);text-transform:uppercase;font-size:0.7rem}
         td{padding:10px;border-bottom:1px solid rgba(255,255,255,0.05)}
         .text-right{text-align:right}
-        .badge{padding:3px 8px;border-radius:5px;font-size:0.7rem;font-weight:700;background:rgba(255,255,255,0.1)}
+        .badge{padding:3px 8px;border-radius:5px;font-size:0.65rem;font-weight:700;text-transform:uppercase}
+        /* Colores según tu especificación */
+        .est-cobrado{background:#22c55e; color:#fff} /* Verde */
+        .est-pendiente{background:#3b82f6; color:#fff} /* Azul */
+        .est-monitorio{background:#ef4444; color:#fff} /* Rojo */
+        .est-sin-respuesta{background:#f59e0b; color:#fff} /* Naranja */
+        .est-parcial{background:#ec4899; color:#fff} /* Rosa */
     </style>
 </head>
 <body>
 
 <header>
-    <h1>GESAMED 2000 — Dashboard Inteligente</h1>
-    <p id="status" style="font-size:0.8rem; color:var(--muted)">Sincronizando con Google Sheets...</p>
+    <h1>GESAMED 2000 — Panel de Control</h1>
+    <p id="status" style="font-size:0.8rem; color:var(--muted)">Leyendo columnas B, E, K, A, D, H+I...</p>
 </header>
 
 <div class="container">
     <div class="filters">
         <select id="fAseg"><option value="">Aseguradora (Todas)</option></select>
         <select id="fAbog"><option value="">Abogado (Todos)</option></select>
-        <select id="fEst"><option value="">Estado (Todos)</option></select>
         <input type="date" id="fDesde">
         <input type="date" id="fHasta">
     </div>
@@ -50,24 +53,19 @@
         <div class="kpi-card"><div class="kpi-label">Expedientes</div><div class="kpi-value" id="kExp">0</div></div>
         <div class="kpi-card"><div class="kpi-label">Total Facturado</div><div class="kpi-value" id="kFact">0 €</div></div>
         <div class="kpi-card"><div class="kpi-label">Total Cobrado</div><div class="kpi-value" id="kCob">0 €</div></div>
-        <div class="kpi-card"><div class="kpi-label">Pendiente Cobro</div><div class="kpi-value" id="kPend" style="color:#ef4444">0 €</div></div>
-    </div>
-
-    <div class="charts-grid">
-        <div class="chart-box"><canvas id="cEst"></canvas></div>
-        <div class="chart-box"><canvas id="cAseg"></canvas></div>
+        <div class="kpi-card"><div class="kpi-label">Pendiente</div><div class="kpi-value" id="kPend" style="color:#ef4444">0 €</div></div>
     </div>
 
     <div class="data-table">
         <table>
             <thead>
                 <tr>
-                    <th>Nº Exp.</th>
-                    <th>Fecha</th>
-                    <th>Aseguradora</th>
-                    <th>Abogado</th>
-                    <th class="text-right">Facturado</th>
-                    <th class="text-right">Cobrado</th>
+                    <th>Abogado (A)</th>
+                    <th>Nº Exp (B)</th>
+                    <th>Fecha (E)</th>
+                    <th>Aseguradora (K)</th>
+                    <th class="text-right">Facturado (D)</th>
+                    <th class="text-right">Cobrado (H+I)</th>
                     <th>Estado</th>
                 </tr>
             </thead>
@@ -80,13 +78,19 @@
 const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRD4xAY-smgan-fPLVb11yhV4QsQiKuJ8bnVyUrnJuNXuw6Sis3THNWL5Jg26M6qZM03GzIkkJcwKYA/pub?gid=2126248190&single=true&output=csv';
 
 let rawData = [];
-let charts = {};
 
-// Procesa números en formato español (1.250,50)
 function parseNum(v) {
-    if(!v) return 0;
+    if(!v || v.trim() === "") return 0;
     let n = v.toString().replace(/\./g, '').replace(',', '.');
     return parseFloat(n) || 0;
+}
+
+// Lógica de estados basada en los importes (ya que el color no viaja en el CSV)
+function determinarEstado(fact, cob) {
+    if (cob <= 0) return { label: 'SIN RESPUESTA', class: 'est-sin-respuesta' };
+    if (cob >= fact) return { label: 'COBRADO', class: 'est-cobrado' };
+    if (cob > 0 && cob < fact) return { label: 'PAGO PARCIAL', class: 'est-parcial' };
+    return { label: 'PENDIENTE', class: 'est-pendiente' };
 }
 
 async function init() {
@@ -95,64 +99,52 @@ async function init() {
         const text = await resp.text();
         const lines = text.split('\n');
         
-        // Detectar índices de columnas automáticamente por nombre
-        const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim().toUpperCase());
-        
-        const idx = {
-            exp: headers.findIndex(h => h.includes('EXPEDIENTE') || h.includes('Nº')),
-            fecha: headers.findIndex(h => h.includes('FECHA')),
-            aseg: headers.findIndex(h => h.includes('ASEGURADORA')),
-            abog: headers.findIndex(h => h.includes('ABOGADO')),
-            fact: headers.findIndex(h => h.includes('FACTURADO')),
-            cob: headers.findIndex(h => h.includes('COBRADO')),
-            est: headers.findIndex(h => h.includes('ESTADO'))
-        };
-
         rawData = lines.slice(1).map(line => {
             const c = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(x => x.replace(/"/g, '').trim());
-            if(c.length < 5) return null;
+            if(c.length < 11) return null;
+
+            const facturado = parseNum(c[3]); // Columna D (índice 3)
+            const cobrado = parseNum(c[7]) + parseNum(c[8]); // H(7) + I(8)
+            const estado = determinarEstado(facturado, cobrado);
+
             return {
-                exp: c[idx.exp] || 'S/N',
-                fecha: c[idx.fecha] || '',
-                aseg: c[idx.aseg] || 'Sin Aseguradora',
-                abog: c[idx.abog] || 'Sin Abogado',
-                fact: parseNum(c[idx.fact]),
-                cob: parseNum(c[idx.cob]),
-                est: (c[idx.est] || 'PTE').toUpperCase()
+                abog: c[0] || 'S/A',      // Col A
+                exp: c[1] || 'S/N',       // Col B
+                fecha: c[4] || '',        // Col E
+                fact: facturado,          
+                cob: cobrado,
+                aseg: c[10] || 'S/A',     // Col K
+                estLabel: estado.label,
+                estClass: estado.class
             };
         }).filter(x => x !== null);
 
-        // Rellenar selectores dinámicamente
         const fill = (id, prop) => {
             const sel = document.getElementById(id);
             [...new Set(rawData.map(x => x[prop]))].sort().forEach(v => {
                 if(v) sel.add(new Option(v, v));
             });
         };
-        fill('fAseg', 'aseg'); fill('fAbog', 'abog'); fill('fEst', 'est');
+        fill('fAseg', 'aseg'); fill('fAbog', 'abog');
 
         render();
-        document.getElementById('status').innerText = 'Sincronización completa';
+        document.getElementById('status').innerText = 'Sincronizado correctamente';
     } catch (e) {
-        document.getElementById('status').innerText = 'Error en la coincidencia de columnas';
-        console.error(e);
+        document.getElementById('status').innerText = 'Error de conexión';
     }
 }
 
 function render() {
     const fA = document.getElementById('fAseg').value;
     const fB = document.getElementById('fAbog').value;
-    const fE = document.getElementById('fEst').value;
     const fD = document.getElementById('fDesde').value;
     const fH = document.getElementById('fHasta').value;
 
     const filtered = rawData.filter(d => {
-        const matchAseg = !fA || d.aseg === fA;
-        const matchAbog = !fB || d.abog === fB;
-        const matchEst = !fE || d.est === fE;
-        const matchDesde = !fD || d.fecha >= fD;
-        const matchHasta = !fH || d.fecha <= fH;
-        return matchAseg && matchAbog && matchEst && matchDesde && matchHasta;
+        return (!fA || d.aseg === fA) && 
+               (!fB || d.abog === fB) && 
+               (!fD || d.fecha >= fD) && 
+               (!fH || d.fecha <= fH);
     });
 
     const tFact = filtered.reduce((s, d) => s + d.fact, 0);
@@ -163,52 +155,21 @@ function render() {
     document.getElementById('kCob').innerText = tCob.toLocaleString('es-ES', {minimumFractionDigits:2}) + ' €';
     document.getElementById('kPend').innerText = (tFact - tCob).toLocaleString('es-ES', {minimumFractionDigits:2}) + ' €';
 
-    document.getElementById('tBody').innerHTML = filtered.slice(0, 50).map(d => `
+    document.getElementById('tBody').innerHTML = filtered.slice(0, 100).map(d => `
         <tr>
+            <td>${d.abog}</td>
             <td><b>${d.exp}</b></td>
             <td>${d.fecha}</td>
             <td>${d.aseg}</td>
-            <td>${d.abog}</td>
             <td class="text-right">${d.fact.toLocaleString('es-ES', {minimumFractionDigits:2})} €</td>
             <td class="text-right">${d.cob.toLocaleString('es-ES', {minimumFractionDigits:2})} €</td>
-            <td><span class="badge">${d.est}</span></td>
+            <td><span class="badge ${d.estClass}">${d.estLabel}</span></td>
         </tr>
     `).join('');
-
-    updateCharts(filtered);
-}
-
-function updateCharts(data) {
-    // Gráfico de Estados
-    const estCount = data.reduce((a, c) => (a[c.est] = (a[c.est] || 0) + 1, a), {});
-    if(charts.est) charts.est.destroy();
-    charts.est = new Chart(document.getElementById('cEst').getContext('2d'), {
-        type: 'doughnut',
-        data: {
-            labels: Object.keys(estCount),
-            datasets: [{ data: Object.values(estCount), backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#a855f7'] }]
-        },
-        options: { maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#fff' } }, title: {display:true, text:'EXPEDIENTES POR ESTADO', color:'#fff'} } }
-    });
-
-    // Gráfico de Aseguradoras (Top 5)
-    const asegFact = data.reduce((a, c) => (a[c.aseg] = (a[c.aseg] || 0) + c.fact, a), {});
-    const sortedAseg = Object.entries(asegFact).sort((a,b) => b[1]-a[1]).slice(0, 5);
-    if(charts.aseg) charts.aseg.destroy();
-    charts.aseg = new Chart(document.getElementById('cAseg').getContext('2d'), {
-        type: 'bar',
-        data: {
-            labels: sortedAseg.map(x => x[0]),
-            datasets: [{ label: 'Facturado (€)', data: sortedAseg.map(x => x[1]), backgroundColor: '#3b82f6' }]
-        },
-        options: { maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display:false }, title: {display:true, text:'TOP 5 ASEGURADORAS', color:'#fff'} }, scales: { x: { ticks: {color:'#fff'} }, y: { ticks: {color:'#fff'} } } }
-    });
 }
 
 document.querySelectorAll('select, input').forEach(el => el.onchange = render);
 init();
 </script>
-</body>
-</html>
 </body>
 </html>
