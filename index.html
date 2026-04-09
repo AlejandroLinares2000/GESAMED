@@ -1,52 +1,59 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GESAMED 2000 — Dashboard Financiero</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        :root{--bg0:#0b0f1a;--bg1:#111827;--card:rgba(17,24,39,.72);--card2:rgba(23,33,54,.62);--stroke:rgba(100,116,160,.18);--text:#eaf0ff;--muted:rgba(165,180,210,.54);--shadow:0 2px 24px rgba(0,0,0,.38);--shadow2:0 1px 8px rgba(0,0,0,.22);--radius:16px;--radius2:10px;--focus:0 0 0 2px rgba(96,165,250,.5)}
-        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-        html{scroll-behavior:smooth}
-        body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg0);color:var(--text);min-height:100vh;background:radial-gradient(ellipse 120% 60% at 50% -10%,rgba(56,90,160,.22) 0%,transparent 60%),linear-gradient(175deg,var(--bg0) 0%,#0d1225 40%,#10162a 100%)}
-        header{position:sticky;top:0;z-index:100;backdrop-filter:blur(18px) saturate(1.4);background:rgba(11,15,26,.78);border-bottom:1px solid var(--stroke);padding:1.1rem 2rem;text-align:center}
-        header h1{font-size:1.55rem;font-weight:800;letter-spacing:-.02em;color:#f0f4ff}
-        header h1::before{content:'';display:inline-block;width:10px;height:10px;border-radius:50%;background:#60a5fa;margin-right:10px;vertical-align:middle;box-shadow:0 0 8px rgba(96,165,250,.6)}
-        header .subtitle{font-size:.82rem;font-weight:600;color:rgba(96,165,250,.85);text-transform:uppercase;letter-spacing:.08em;margin-top:2px}
-        header p{font-size:.78rem;color:var(--muted);margin-top:3px}
-        .container{max-width:1400px;margin:0 auto;padding:1.2rem 1.6rem 2rem}
-        .filters{backdrop-filter:blur(14px);background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);padding:1rem 1.2rem;margin-bottom:1.4rem;box-shadow:var(--shadow2)}
-        .filter-group{display:grid;grid-template-columns:repeat(12,1fr);gap:.7rem;align-items:end}
-        .filter-group label{font-size:.7rem;font-weight:600;color:var(--muted);text-transform:uppercase;margin-bottom:3px;display:block}
-        .filter-group select,.filter-group input{background:var(--bg1);border:1px solid var(--stroke);color:var(--text);font-size:.82rem;padding:.45rem .6rem;border-radius:var(--radius2);width:100%;outline:none}
-        .btn-reset{background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;border:none;padding:.45rem 1.1rem;border-radius:var(--radius2);font-size:.78rem;font-weight:600;cursor:pointer}
-        .kpi-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:.9rem;margin-bottom:1.4rem}
-        .kpi-card{grid-column:span 3;position:relative;backdrop-filter:blur(12px);background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);padding:1.1rem 1.2rem;box-shadow:var(--shadow2)}
-        .kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--radius) var(--radius) 0 0}
-        .kpi-card.blue::before{background:#3b82f6}.kpi-card.green::before{background:#22c55e}.kpi-card.orange::before{background:#f59e0b}.kpi-card.purple::before{background:#a855f7}.kpi-card.red::before{background:#ef4444}.kpi-card.teal::before{background:#14b8a6}.kpi-card.pink::before{background:#ec4899}
-        .kpi-label{font-size:.7rem;font-weight:600;color:var(--muted);text-transform:uppercase}
-        .kpi-value{font-size:1.55rem;font-weight:800;margin:4px 0 2px}
-        .kpi-change{font-size:.72rem;font-weight:600}
-        .charts-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:1rem;margin-bottom:1.4rem}
-        .chart-container{grid-column:span 6;background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);padding:1rem 1.1rem}
-        .chart-container.full-width{grid-column:span 12}
-        .chart-wrapper{position:relative;height:280px}.chart-wrapper.tall{height:360px}
-        .data-table{background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);padding:1rem;overflow-x:auto}
-        table{width:100%;border-collapse:collapse;font-size:.78rem}
-        th{background:rgba(30,41,66,.92);color:var(--muted);padding:.6rem .7rem;text-align:left;border-bottom:1px solid var(--stroke)}
-        td{padding:.55rem .7rem;border-bottom:1px solid rgba(100,116,160,.1)}
-        .text-right{text-align:right}
-        .estado-badge{padding:2px 8px;border-radius:6px;font-size:.68rem;font-weight:600;text-transform:uppercase}
-        .estado-pagado{background:rgba(34,197,94,.18);color:#4ade80}
-        .estado-monitorio{background:rgba(249,115,22,.18);color:#fb923c}
-        .estado-sin-respuesta{background:rgba(239,68,68,.18);color:#f87171}
-        .estado-pte-pago{background:rgba(168,85,247,.18);color:#c084fc}
-        .pagination{display:flex;justify(content):center;align-items:center;gap:.8rem;margin-top:.8rem}
-        .pagination button{background:var(--card2);border:1px solid var(--stroke);color:var(--text);padding:.4rem 1rem;border-radius:var(--radius2);cursor:pointer}
-        .pagination button:disabled{opacity:.4}
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GESAMED 2000 — Dashboard Financiero</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg0:#0b0f1a;--bg1:#111827;--card:rgba(17,24,39,.72);--card2:rgba(23,33,54,.62);--stroke:rgba(100,116,160,.18);--text:#eaf0ff;--muted:rgba(165,180,210,.54);--shadow:0 2px 24px rgba(0,0,0,.38);--shadow2:0 1px 8px rgba(0,0,0,.22);--radius:16px;--radius2:10px;--focus:0 0 0 2px rgba(96,165,250,.5)}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg0);color:var(--text);min-height:100vh;background:radial-gradient(ellipse 120% 60% at 50% -10%,rgba(56,90,160,.22) 0%,transparent 60%),linear-gradient(175deg,var(--bg0) 0%,#0d1225 40%,#10162a 100%)}
+
+header{position:sticky;top:0;z-index:100;backdrop-filter:blur(18px) saturate(1.4);background:rgba(11,15,26,.78);border-bottom:1px solid var(--stroke);padding:1.1rem 2rem;text-align:center}
+header h1{font-size:1.55rem;font-weight:800;letter-spacing:-.02em;color:#f0f4ff}
+header h1::before{content:'';display:inline-block;width:10px;height:10px;border-radius:50%;background:#60a5fa;margin-right:10px;vertical-align:middle;box-shadow:0 0 8px rgba(96,165,250,.6)}
+header .subtitle{font-size:.82rem;font-weight:600;color:rgba(96,165,250,.85);text-transform:uppercase;letter-spacing:.08em;margin-top:2px}
+header p{font-size:.78rem;color:var(--muted);margin-top:3px}
+
+.container{max-width:1400px;margin:0 auto;padding:1.2rem 1.6rem 2rem}
+
+.filters{backdrop-filter:blur(14px);background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);padding:1rem 1.2rem;margin-bottom:1.4rem;box-shadow:var(--shadow2)}
+.filter-group{display:grid;grid-template-columns:repeat(12,1fr);gap:.7rem;align-items:end}
+.filter-group label{font-size:.7rem;font-weight:600;color:var(--muted);text-transform:uppercase;margin-bottom:3px;display:block}
+.filter-group select,.filter-group input{background:var(--bg1);border:1px solid var(--stroke);color:var(--text);font-size:.82rem;padding:.45rem .6rem;border-radius:var(--radius2);width:100%;outline:none}
+.btn-reset{background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;border:none;padding:.45rem 1.1rem;border-radius:var(--radius2);font-size:.78rem;font-weight:600;cursor:pointer}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:.9rem;margin-bottom:1.4rem}
+.kpi-card{grid-column:span 3;position:relative;backdrop-filter:blur(12px);background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);padding:1.1rem 1.2rem;box-shadow:var(--shadow2)}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--radius) var(--radius) 0 0}
+.kpi-card.blue::before{background:#3b82f6}.kpi-card.green::before{background:#22c55e}.kpi-card.orange::before{background:#f59e0b}.kpi-card.purple::before{background:#a855f7}.kpi-card.red::before{background:#ef4444}.kpi-card.teal::before{background:#14b8a6}.kpi-card.pink::before{background:#ec4899}
+.kpi-label{font-size:.7rem;font-weight:600;color:var(--muted);text-transform:uppercase}
+.kpi-value{font-size:1.55rem;font-weight:800;margin:4px 0 2px}
+.kpi-change{font-size:.72rem;font-weight:600}
+
+.charts-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:1rem;margin-bottom:1.4rem}
+.chart-container{grid-column:span 6;background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);padding:1rem 1.1rem}
+.chart-container.full-width{grid-column:span 12}
+.chart-wrapper{position:relative;height:280px}.chart-wrapper.tall{height:360px}
+
+.data-table{background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);padding:1rem;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.78rem}
+th{background:rgba(30,41,66,.92);color:rgba(165,180,210,.85);padding:.6rem .7rem;text-align:left;border-bottom:1px solid var(--stroke)}
+td{padding:.55rem .7rem;border-bottom:1px solid rgba(100,116,160,.1)}
+.text-right{text-align:right}
+.estado-badge{padding:2px 8px;border-radius:6px;font-size:.68rem;font-weight:600;text-transform:uppercase}
+.estado-pagado{background:rgba(34,197,94,.18);color:#4ade80}
+.estado-monitorio{background:rgba(249,115,22,.18);color:#fb923c}
+.estado-sin-respuesta{background:rgba(239,68,68,.18);color:#f87171}
+.estado-pte-pago{background:rgba(168,85,247,.18);color:#c084fc}
+
+.pagination{display:flex;justify-content:center;align-items:center;gap:.8rem;margin-top:.8rem}
+.pagination button{background:var(--card2);border:1px solid var(--stroke);color:var(--text);padding:.4rem 1rem;border-radius:var(--radius2);cursor:pointer}
+.pagination button:disabled{opacity:.4}
+</style>
 </head>
 <body>
 
@@ -116,24 +123,21 @@ async function loadData() {
         const res = await fetch(SHEET_URL);
         const text = await res.text();
         
-        // El separador en Google Sheets España suele ser el punto y coma (;)
-        // Limpiamos las filas y quitamos comillas
         const rawRows = text.trim().split('\n');
         const rows = rawRows.map(row => {
             const sep = row.includes(';') ? ';' : ',';
             return row.split(sep).map(cell => cell.replace(/"/g, '').trim());
         });
 
-        // Mapeo defensivo de columnas
         DATA = rows.slice(1).filter(r => r.length >= 7).map(r => {
             return {
-                e: r[0], // Expediente
-                f: r[1], // Fecha
-                a: r[2], // Aseguradora
-                b: r[3], // Abogado
-                fa: parseSpanishNumber(r[4]), // Facturado
-                n: parseSpanishNumber(r[5]),  // Negociado
-                c: parseSpanishNumber(r[6]),  // Cobrado
+                e: r[0],
+                f: r[1],
+                a: r[2],
+                b: r[3],
+                fa: parseSpanishNumber(r[4]),
+                n: parseSpanishNumber(r[5]),
+                c: parseSpanishNumber(r[6]),
                 s: (r[7] || 'SIN RESPUESTA').toUpperCase()
             };
         });
@@ -141,14 +145,12 @@ async function loadData() {
         if (DATA.length === 0) throw new Error("No hay datos");
         initDashboard();
     } catch (e) {
-        document.getElementById('statusMessage').textContent = "⚠️ Error leyendo datos. Verifica las columnas del Excel.";
+        document.getElementById('statusMessage').textContent = "⚠️ Error leyendo datos.";
     }
 }
 
-// Función para procesar números tipo "1.250,50" o "1250.50"
 function parseSpanishNumber(val) {
     if (!val) return 0;
-    // Si hay puntos y comas, asumimos formato europeo: quitar puntos (miles) y cambiar coma por punto (decimal)
     let clean = val.replace(/\./g, '').replace(',', '.');
     let n = parseFloat(clean);
     return isNaN(n) ? 0 : n;
@@ -224,35 +226,30 @@ function setupCharts() {
 }
 
 function updateCharts() {
-    // Estado
     const ests = filteredData.reduce((a, c) => (a[c.s] = (a[c.s] || 0) + 1, a), {});
     charts.estado.data.labels = Object.keys(ests);
     charts.estado.data.datasets[0].data = Object.values(ests);
     charts.estado.data.datasets[0].backgroundColor = Object.keys(ests).map(k => ESTADO_COLORS[k] || '#6366f1');
     charts.estado.update();
 
-    // Aseguradoras Top 10
     const as = filteredData.reduce((a, c) => (a[c.a] = (a[c.a] || 0) + c.fa, a), {});
     const sortedAs = Object.entries(as).sort((a,b) => b[1]-a[1]).slice(0,10);
     charts.aseg.data.labels = sortedAs.map(e => e[0]);
     charts.aseg.data.datasets[0].data = sortedAs.map(e => e[1]);
     charts.aseg.update();
 
-    // Mensual
     const ms = filteredData.reduce((a, c) => { if(c.f && c.f.includes('-')){ const m = c.f.substring(0,7); a[m] = (a[m]||0) + c.fa; } return a; }, {});
     const sortedMs = Object.keys(ms).sort();
     charts.mensual.data.labels = sortedMs;
     charts.mensual.data.datasets[0].data = sortedMs.map(m => ms[m]);
     charts.mensual.update();
 
-    // Abogados
     const abs = filteredData.reduce((a, c) => (a[c.b] = (a[c.b] || 0) + 1, a), {});
     const sortedAbs = Object.entries(abs).sort((a,b)=>b[1]-a[1]).slice(0,10);
     charts.abog.data.labels = sortedAbs.map(e => e[0]);
     charts.abog.data.datasets[0].data = sortedAbs.map(e => e[1]);
     charts.abog.update();
     
-    // Comparativo
     const cF = {}, cN = {}, cC = {};
     filteredData.forEach(d => { if(d.f && d.f.includes('-')){ const m = d.f.substring(0,7); cF[m]=(cF[m]||0)+d.fa; cN[m]=(cN[m]||0)+d.n; cC[m]=(cC[m]||0)+d.c; } });
     charts.comp.data.labels = sortedMs;
@@ -261,7 +258,6 @@ function updateCharts() {
     charts.comp.data.datasets[2].data = sortedMs.map(m => cC[m] || 0);
     charts.comp.update();
 
-    // Facturado por Estado
     const ef = filteredData.reduce((a, c) => (a[c.s] = (a[c.s] || 0) + c.fa, a), {});
     charts.estFact.data.labels = Object.keys(ef);
     charts.estFact.data.datasets[0].data = Object.values(ef);
@@ -277,7 +273,7 @@ function updateTable() {
         <tr>
             <td>${d.e}</td><td>${d.f || '—'}</td><td>${d.a}</td><td>${d.b}</td>
             <td class="text-right">${fmtEur(d.fa)}</td><td class="text-right">${fmtEur(d.n)}</td><td class="text-right">${fmtEur(d.c)}</td>
-            <td><span class="estado-badge ${'estado-'+d.s.toLowerCase().replace(/\s+/g, '-')}">${d.s}</span></td>
+            <td><span class="estado-badge ${'estado-'+(d.s||'').toLowerCase().replace(/\s+/g, '-')}">${d.s}</span></td>
         </tr>
     `).join('');
 
