@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GESAMED 2000 — Dashboard Oficial</title>
+    <title>GESAMED 2000 — Dashboard Completo</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -20,6 +20,8 @@
         .kpi-card::after{content:'';position:absolute;top:0;left:0;width:4px;height:100%;background:#3b82f6}
         .kpi-label{font-size:.75rem;color:var(--muted);text-transform:uppercase;font-weight:700}
         .kpi-value{font-size:1.6rem;font-weight:800;margin-top:5px}
+        .charts-grid{display:grid;grid-template-columns:repeat(auto-fit, minmax(400px, 1fr));gap:1.5rem;margin-bottom:1.5rem}
+        .chart-box{background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);padding:1.2rem;height:350px}
         .data-table{background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);padding:1rem;overflow-x:auto}
         table{width:100%;border-collapse:collapse;font-size:.78rem}
         th{text-align:left;color:var(--muted);padding:10px;border-bottom:1px solid var(--stroke);text-transform:uppercase;font-size:0.65rem}
@@ -29,21 +31,20 @@
         .est-cobrado{background:#22c55e; color:#fff} 
         .est-parcial{background:#ec4899; color:#fff}
         .est-sin-respuesta{background:#f59e0b; color:#fff}
-        .est-pendiente{background:#3b82f6; color:#fff}
     </style>
 </head>
 <body>
 
 <header>
-    <h1>GESAMED 2000 — Dashboard Operativo</h1>
-    <p id="status" style="font-size:0.8rem; color:var(--muted)">Procesando datos de Google Sheets...</p>
+    <h1>GESAMED 2000 — Dashboard Avanzado</h1>
+    <p id="status" style="font-size:0.8rem; color:var(--muted)">Sincronizando gráficos y datos...</p>
 </header>
 
 <div class="container">
     <div class="filters">
         <select id="fAseg"><option value="">Aseguradora (Todas)</option></select>
         <select id="fAbog"><option value="">Abogado (Todos)</option></select>
-        <select id="fEst"><option value="">Estado (Filtrar por cálculo)</option>
+        <select id="fEst"><option value="">Estado (Todos)</option>
             <option value="COBRADO">COBRADO</option>
             <option value="PAGO PARCIAL">PAGO PARCIAL</option>
             <option value="SIN RESPUESTA">SIN RESPUESTA</option>
@@ -56,7 +57,13 @@
         <div class="kpi-card"><div class="kpi-label">Expedientes</div><div class="kpi-value" id="kExp">0</div></div>
         <div class="kpi-card"><div class="kpi-label">Total Facturado</div><div class="kpi-value" id="kFact">0 €</div></div>
         <div class="kpi-card"><div class="kpi-label">Total Cobrado</div><div class="kpi-value" id="kCob">0 €</div></div>
-        <div class="kpi-card"><div class="kpi-label">Pendiente Real</div><div class="kpi-value" id="kPend" style="color:#ef4444">0 €</div></div>
+        <div class="kpi-card"><div class="kpi-label">Pendiente</div><div class="kpi-value" id="kPend" style="color:#ef4444">0 €</div></div>
+    </div>
+
+    <div class="charts-grid">
+        <div class="chart-box"><canvas id="cEst"></canvas></div>
+        <div class="chart-box"><canvas id="cAseg"></canvas></div>
+        <div class="chart-box" style="grid-column: span 12; height: 300px;"><canvas id="cEvo"></canvas></div>
     </div>
 
     <div class="data-table">
@@ -67,9 +74,9 @@
                     <th>Nº Exp</th>
                     <th>Fecha</th>
                     <th>Aseguradora</th>
-                    <th class="text-right">Facturado (D)</th>
-                    <th class="text-right">Cobrado (H+I)</th>
-                    <th>Estado Calc.</th>
+                    <th class="text-right">Facturado</th>
+                    <th class="text-right">Cobrado</th>
+                    <th>Estado</th>
                 </tr>
             </thead>
             <tbody id="tBody"></tbody>
@@ -81,19 +88,19 @@
 const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRD4xAY-smgan-fPLVb11yhV4QsQiKuJ8bnVyUrnJuNXuw6Sis3THNWL5Jg26M6qZM03GzIkkJcwKYA/pub?gid=2126248190&single=true&output=csv';
 
 let rawData = [];
+let charts = {};
 
 function parseNum(v) {
     if(!v || v.trim() === "" || v === "-") return 0;
-    // Eliminar símbolos de moneda y espacios, corregir formato decimal español
     let clean = v.toString().replace(/[€\s]/g, '').replace(/\./g, '').replace(',', '.');
     let n = parseFloat(clean);
     return isNaN(n) ? 0 : n;
 }
 
 function calcularEstado(fact, cob) {
-    if (cob >= fact && fact > 0) return { label: 'COBRADO', class: 'est-cobrado' };
-    if (cob > 0 && cob < fact) return { label: 'PAGO PARCIAL', class: 'est-parcial' };
-    return { label: 'SIN RESPUESTA', class: 'est-sin-respuesta' };
+    if (cob >= fact && fact > 0) return { label: 'COBRADO', class: 'est-cobrado', color: '#22c55e' };
+    if (cob > 0 && cob < fact) return { label: 'PAGO PARCIAL', class: 'est-parcial', color: '#ec4899' };
+    return { label: 'SIN RESPUESTA', class: 'est-sin-respuesta', color: '#f59e0b' };
 }
 
 async function init() {
@@ -118,7 +125,8 @@ async function init() {
                 fact: fact,
                 cob: cob,
                 estLabel: est.label,
-                estClass: est.class
+                estClass: est.class,
+                estColor: est.color
             };
         }).filter(x => x !== null && x.exp !== 'S/N');
 
@@ -130,9 +138,9 @@ async function init() {
         fill('fAseg', 'aseg'); fill('fAbog', 'abog');
 
         render();
-        document.getElementById('status').innerText = 'Sincronización OK';
+        document.getElementById('status').innerText = 'Dashboard actualizado';
     } catch (e) {
-        document.getElementById('status').innerText = 'Error de datos';
+        document.getElementById('status').innerText = 'Error en carga';
     }
 }
 
@@ -159,21 +167,69 @@ function render() {
     document.getElementById('kCob').innerText = tC.toLocaleString('es-ES', {minimumFractionDigits:2}) + ' €';
     document.getElementById('kPend').innerText = (tF - tC).toLocaleString('es-ES', {minimumFractionDigits:2}) + ' €';
 
-    document.getElementById('tBody').innerHTML = filtered.map(d => `
+    document.getElementById('tBody').innerHTML = filtered.slice(0, 100).map(d => `
         <tr>
-            <td>${d.abog}</td>
-            <td><b>${d.exp}</b></td>
-            <td>${d.fecha}</td>
-            <td>${d.aseg}</td>
+            <td>${d.abog}</td><td><b>${d.exp}</b></td><td>${d.fecha}</td><td>${d.aseg}</td>
             <td class="text-right">${d.fact.toLocaleString('es-ES', {minimumFractionDigits:2})} €</td>
             <td class="text-right">${d.cob.toLocaleString('es-ES', {minimumFractionDigits:2})} €</td>
             <td><span class="badge ${d.estClass}">${d.estLabel}</span></td>
         </tr>
     `).join('');
+
+    updateCharts(filtered);
+}
+
+function updateCharts(data) {
+    const ctxEst = document.getElementById('cEst').getContext('2d');
+    const ctxAseg = document.getElementById('cAseg').getContext('2d');
+    const ctxEvo = document.getElementById('cEvo').getContext('2d');
+
+    // Chart Estados
+    const estData = data.reduce((a, c) => (a[c.estLabel] = (a[c.estLabel] || 0) + 1, a), {});
+    if(charts.est) charts.est.destroy();
+    charts.est = new Chart(ctxEst, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(estData),
+            datasets: [{ data: Object.values(estData), backgroundColor: ['#22c55e', '#ec4899', '#f59e0b'] }]
+        },
+        options: { maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: {color: '#fff'} }, title: {display:true, text:'EXPEDIENTES POR ESTADO', color:'#fff'} } }
+    });
+
+    // Chart Aseguradoras Top 5
+    const asegData = data.reduce((a, c) => (a[c.aseg] = (a[c.aseg] || 0) + c.fact, a), {});
+    const sortedAseg = Object.entries(asegData).sort((a,b) => b[1]-a[1]).slice(0, 5);
+    if(charts.aseg) charts.aseg.destroy();
+    charts.aseg = new Chart(ctxAseg, {
+        type: 'bar',
+        data: {
+            labels: sortedAseg.map(x => x[0]),
+            datasets: [{ label: 'Facturado (€)', data: sortedAseg.map(x => x[1]), backgroundColor: '#3b82f6' }]
+        },
+        options: { maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: {display:false}, title: {display:true, text:'TOP 5 ASEGURADORAS', color:'#fff'} }, scales: { x: {ticks:{color:'#fff'}}, y: {ticks:{color:'#fff'}} } }
+    });
+
+    // Chart Evolución (Facturado Mensual)
+    const evoData = data.reduce((a, c) => {
+        if(c.fecha) { const m = c.fecha.substring(0,7); a[m] = (a[m] || 0) + c.fact; }
+        return a;
+    }, {});
+    const sortedMonths = Object.keys(evoData).sort();
+    if(charts.evo) charts.evo.destroy();
+    charts.evo = new Chart(ctxEvo, {
+        type: 'line',
+        data: {
+            labels: sortedMonths,
+            datasets: [{ label: 'Facturado Mensual', data: sortedMonths.map(m => evoData[m]), borderColor: '#3b82f6', tension: 0.3, fill: true, backgroundColor: 'rgba(59,130,246,0.1)' }]
+        },
+        options: { maintainAspectRatio: false, plugins: { legend: {display:false}, title: {display:true, text:'EVOLUCIÓN FACTURACIÓN', color:'#fff'} }, scales: { x: {ticks:{color:'#fff'}}, y: {ticks:{color:'#fff'}} } }
+    });
 }
 
 document.querySelectorAll('select, input').forEach(el => el.onchange = render);
 init();
 </script>
+</body>
+</html>
 </body>
 </html>
